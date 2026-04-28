@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>統測英文題庫系統 - 挑戰版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'bounce-slight': 'bounceSlight 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        bounceSlight: { '0%, 100%': { transform: 'translateY(-5%)' }, '50%': { transform: 'translateY(0)' } }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 基本樣式與字體設定 */
+        body { 
+            font-family: 'Inter', 'Noto Sans TC', sans-serif; 
+            background-color: #f8fafc;
+            background-image: radial-gradient(circle at top right, #e0f2fe 0%, #f8fafc 40%), radial-gradient(circle at bottom left, #ede9fe 0%, #f8fafc 40%);
+            background-attachment: fixed;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 互動效果 */
+        .mode-card, .category-btn, .option-btn, .year-btn { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .mode-card:hover, .category-btn:hover:not(:disabled) { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); }
+        .option-btn:hover:not(:disabled) { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .year-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+        .option-letter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        /* 答題回饋樣式 */
+        .correct { background-color: #ecfdf5 !important; border-color: #10b981 !important; color: #065f46 !important; }
+        .correct .option-letter { background-color: #10b981; color: white; }
+        
+        .incorrect { background-color: #fef2f2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
+        .incorrect .option-letter { background-color: #ef4444; color: white; }
+
+        /* 填空底線與 Markdown 支援 */
+        .blank-box { padding: 2px 6px; border-radius: 6px; font-weight: 700; border-bottom: 2px solid currentColor; }
+        b, strong { font-weight: 700; color: #0f172a; }
+        i, em { font-style: italic; color: #334155; }
+
+        /* 按鈕光暈動畫 */
+        @keyframes glow { 0% { box-shadow: 0 0 5px currentColor; } 50% { box-shadow: 0 0 20px currentColor; } 100% { box-shadow: 0 0 5px currentColor; } }
+        .btn-glow { animation: glow 2s infinite ease-in-out; }
+
+        /* Combo 動畫 */
+        @keyframes combo-pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        .combo-pop-animation { animation: combo-pop 0.3s ease-in-out; }
+
+        /* 捲軸美化 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 text-slate-800">
+    
+    <div class="w-full max-w-4xl mx-auto animate-fade-in">
+        
+        <!-- 模式選擇畫面 -->
+        <div id="mode-selection-screen" class="glass-card rounded-3xl shadow-xl p-8 md:p-12 transition-all duration-300 max-w-2xl mx-auto">
+            <div class="text-center mb-8">
+                <span class="inline-block px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm mb-4 animate-bounce-slight">🎓 輕鬆備戰 114</span>
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">統測英文題庫系統</h1>
+                <p class="text-slate-500 mt-3">選擇你的專屬遊玩模式</p>
+                <p class="text-xs text-slate-400 mt-2">資料來源： 育達雲端補習班 & 財團法人技專校院入學測驗中心</p>
+            </div>
+            <div class="grid md:grid-cols-2 gap-6 mt-10">
+                <button id="practice-mode-btn" class="mode-card text-left bg-white border border-slate-100 rounded-3xl shadow-lg p-8 group relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mr-4 -mt-4 text-7xl opacity-5 transition-transform group-hover:scale-110">📚</div>
+                    <h2 class="text-2xl font-bold text-blue-600 flex items-center gap-2"><span class="text-3xl">📘</span> 練習模式</h2>
+                    <p class="text-slate-500 mt-3 leading-relaxed">可選擇特定年度，無時間壓力。完整體驗所有題組設計與解析。</p>
+                </button>
+                <button id="combo-mode-btn" class="mode-card text-left bg-white border border-slate-100 rounded-3xl shadow-lg p-8 group relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mr-4 -mt-4 text-7xl opacity-5 transition-transform group-hover:scale-110">🔥</div>
+                    <h2 class="text-2xl font-bold text-red-600 flex items-center gap-2"><span class="text-3xl">🔥</span> 挑戰賽</h2>
+                    <p class="text-slate-500 mt-3 leading-relaxed">全年度混合，一命到底挑戰最高連擊。將成績登錄排行榜！</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- 登入畫面 (Combo 模式) -->
+        <div id="login-screen" class="hidden glass-card max-w-md mx-auto rounded-3xl shadow-xl p-8 md:p-10 text-center animate-slide-up">
+            <div class="text-5xl mb-4">🏆</div>
+            <h1 class="text-2xl font-bold text-slate-800">Combo 挑戰賽</h1>
+            <p class="text-slate-500 mt-2">請輸入玩家名稱以記錄你的排行榜成就</p>
+            <form id="login-form" class="mt-8">
+                <input type="text" id="player-name-input" class="w-full p-4 border-2 border-slate-200 rounded-xl text-lg focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-400 transition-all text-center font-semibold text-slate-700" placeholder="例如：電機一孝謝政倫" required>
+                <button type="submit" class="mt-6 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-md hover:shadow-lg focus:ring-4 focus:ring-red-200">進入排行榜戰區</button>
+                <button type="button" id="back-to-mode-from-login-btn" class="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 px-8 rounded-xl transition-all">返回上一步</button>
+            </form>
+        </div>
+        
+        <!-- 題庫類別選擇畫面 -->
+        <div id="category-selection-screen" class="hidden glass-card rounded-3xl shadow-xl p-6 md:p-10 animate-fade-in w-full max-w-4xl mx-auto">
+             <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+                <div>
+                    <h1 id="category-title" class="text-2xl md:text-3xl font-bold text-slate-800"></h1>
+                    <p id="category-subtitle" class="text-slate-500 mt-1">請選擇欲挑戰的大題</p>
+                </div>
+                <button id="back-to-mode-selection-btn" class="text-sm bg-slate-100 text-slate-600 font-semibold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors shadow-sm">更換模式</button>
+            </div>
+            <div id="category-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+        </div>
+
+        <!-- 測驗主畫面 -->
+        <div id="quiz-container" class="hidden glass-card rounded-3xl shadow-xl overflow-hidden flex flex-col transition-all duration-300 max-w-3xl mx-auto">
+            
+            <div id="quiz-header" class="px-6 py-5 md:px-8 md:py-6 transition-colors duration-500 bg-blue-500 flex justify-between items-center text-white relative overflow-hidden">
+                <div class="flex items-center gap-3 relative z-10">
+                    <div id="quiz-icon" class="text-3xl bg-white/20 p-2 rounded-xl backdrop-blur-sm">📖</div>
+                    <div>
+                        <h1 id="quiz-title" class="text-xl md:text-2xl font-bold leading-tight">字彙題</h1>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4 relative z-10">
+                    <div id="combo-display" class="hidden text-right flex items-center gap-3 bg-black/20 px-4 py-2 rounded-2xl backdrop-blur-sm">
+                        <span class="text-white/90 text-sm font-semibold uppercase tracking-wider">COMBO</span>
+                        <div id="combo-counter" class="text-4xl font-black text-white drop-shadow-md">0</div>
+                    </div>
+                    <button id="back-to-category-btn" class="text-sm bg-white/10 hover:bg-white/25 text-white font-semibold py-2.5 px-4 rounded-xl backdrop-blur-sm transition-all shadow-sm">放棄</button>
+                </div>
+            </div>
+
+            <div class="p-6 md:p-8 flex-1 flex flex-col relative">
+                
+                <!-- Loading -->
+                <div id="loading" class="text-center py-20 flex-1 flex flex-col items-center justify-center hidden animate-fade-in">
+                    <div class="relative w-16 h-16">
+                        <div class="absolute inset-0 rounded-full border-t-4 border-blue-500 animate-spin opacity-75"></div>
+                        <div class="absolute inset-2 rounded-full border-r-4 border-indigo-400 animate-spin opacity-75" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
+                    </div>
+                    <p class="mt-6 text-slate-600 font-medium text-lg">正在準備雲端題庫...</p>
+                </div>
+
+                <!-- 年度選擇 (僅練習模式) -->
+                <div id="year-selection-screen" class="text-center py-8 flex-1 flex flex-col items-center justify-center hidden animate-slide-up">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">請選擇練習年度</h2>
+                    <p class="text-slate-500 mb-8">專注練習特定歷屆試題範圍</p>
+                    <div id="year-buttons" class="flex flex-wrap justify-center gap-3 md:gap-4 max-w-2xl mx-auto"></div>
+                </div>
+
+                <!-- 測驗內容 -->
+                <div id="quiz-content" class="flex-1 flex flex-col hidden animate-fade-in">
+                    <!-- 進度條 (僅練習模式) -->
+                    <div id="progress-wrapper" class="hidden mb-6">
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-2">
+                            <div id="progress-bar" class="h-full rounded-full transition-all duration-500 ease-out w-0 bg-blue-500"></div>
+                        </div>
+                        <div class="flex justify-end">
+                            <span id="progress-text" class="text-xs font-bold text-slate-400 tracking-wide uppercase">進度 1 / 10</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <span id="question-number" class="text-sm font-bold rounded-xl inline-block px-3 py-1 bg-slate-100 text-slate-600"></span>
+                    </div>
+                        
+                    <!-- 文章區塊 -->
+                    <div id="passage-container" class="hidden mb-6 bg-slate-50/80 backdrop-blur border border-slate-200 p-5 rounded-2xl shadow-inner text-base text-slate-700 leading-relaxed whitespace-pre-line passage-content max-h-64 overflow-y-auto"></div>
+                        
+                    <div id="article-button-container" class="hidden mb-6">
+                        <button id="view-article-btn" class="themed-btn-light w-full text-sm font-semibold py-3 px-4 rounded-xl flex items-center justify-center transition-all bg-blue-50 text-blue-600 hover:bg-blue-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="mr-2" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M0 .5A.5.5 0 0 1 .5 0h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 0 .5m0 2A.5.5 0 0 1 .5 2h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m9 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-9 2A.5.5 0 0 1 .5 4h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m5 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-5 2A.5.5 0 0 1 .5 6h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5m8 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-8 2A.5.5 0 0 1 .5 8h8a.5.5 0 0 1 0 1h-8a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m8-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5"/></svg>
+                            檢視完整參考文章
+                        </button>
+                    </div>
+
+                    <div class="mb-6">
+                        <p id="question-text" class="text-lg md:text-xl font-medium text-slate-800 leading-relaxed whitespace-pre-line"></p>
+                        <p id="translation-text" class="text-sm text-slate-500 mt-3 font-medium"></p>
+                    </div>
+                    
+                    <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    
+                    <div id="fill-in-container" class="hidden mt-2 space-y-4">
+                        <div id="input-wrapper-1"><label class="text-sm font-bold text-slate-500 mb-1.5 block">答案一</label><input type="text" id="fill-in-input-1" class="themed-input w-full p-4 border-2 rounded-xl text-lg border-slate-200 outline-none transition-all shadow-sm"></div>
+                        <div id="input-wrapper-2" class="hidden"><label class="text-sm font-bold text-slate-500 mb-1.5 block">答案二</label><input type="text" id="fill-in-input-2" class="themed-input w-full p-4 border-2 rounded-xl text-lg border-slate-200 outline-none transition-all shadow-sm"></div>
+                        <button id="submit-fill-in-btn" class="themed-btn w-full text-white font-bold py-4 px-8 rounded-xl !mt-6 transition-all shadow-md">確認答案</button>
+                    </div>
+
+                    <div id="reorder-fill-container" class="hidden mt-2 space-y-4">
+                        <textarea id="reorder-fill-input" class="themed-input w-full p-4 border-2 rounded-xl text-lg border-slate-200 outline-none transition-all shadow-sm leading-relaxed" rows="3" placeholder="請輸入重組後的完整句子..."></textarea>
+                        <button id="submit-reorder-fill-btn" class="themed-btn w-full text-white font-bold py-4 px-8 rounded-xl !mt-6 transition-all shadow-md">確認答案</button>
+                    </div>
+                    
+                    <div id="translation-container" class="hidden mt-2 space-y-4">
+                        <textarea id="translation-input" class="themed-input w-full p-4 border-2 rounded-xl text-lg border-slate-200 outline-none transition-all shadow-sm leading-relaxed" rows="3" placeholder="請輸入英文翻譯..."></textarea>
+                        <button id="submit-translation-btn" class="themed-btn w-full text-white font-bold py-4 px-8 rounded-xl !mt-6 transition-all shadow-md">確認答案</button>
+                    </div>
+
+                    <div id="feedback-container" class="mt-8 transition-all hidden animate-slide-up">
+                        <div id="explanation-card" class="border-l-4 p-5 rounded-r-2xl shadow-sm bg-slate-50">
+                            <div class="flex items-start gap-3">
+                                <div id="feedback-icon" class="text-2xl mt-0.5">💡</div>
+                                <div>
+                                    <p class="font-bold text-slate-800 text-lg mb-1">正解：<span id="correct-answer" class="ml-1 tracking-wide"></span></p>
+                                    <p id="explanation-text" class="text-slate-600 leading-relaxed"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 text-right">
+                        <button id="next-question-btn" class="themed-btn w-full md:w-auto inline-flex justify-center items-center gap-2 text-white font-bold py-3.5 px-8 rounded-xl outline-none transition-all shadow-md hidden"></button>
+                    </div>
+                </div>
+
+                <!-- Summary View (練習模式完成) -->
+                <div id="summary-view" class="text-center py-12 flex-1 flex flex-col items-center justify-center hidden animate-fade-in">
+                    <div class="text-6xl mb-6">🎉</div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">練習完成！</h2>
+                    <p class="text-slate-500 mb-8">你已經完成了這個範圍的所有題目</p>
+                    
+                    <div class="bg-slate-50 rounded-3xl p-8 mb-8 w-full max-w-sm border border-slate-100 shadow-sm">
+                        <p class="text-sm font-bold text-slate-400 mb-1">答對題數</p>
+                        <div class="flex items-baseline justify-center gap-2">
+                            <span id="score-correct" class="text-5xl font-black text-slate-800">0</span>
+                            <span class="text-xl font-bold text-slate-400">/</span>
+                            <span id="score-total" class="text-xl font-bold text-slate-500">0</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                        <button id="restart-btn" class="flex-1 py-3.5 px-6 rounded-xl font-bold transition-all shadow-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300">再練一次</button>
+                        <button id="choose-year-btn" class="themed-btn flex-1 text-white py-3.5 px-6 rounded-xl font-bold transition-all shadow-md">選擇其他年度</button>
+                    </div>
+                </div>
+                
+                <div id="error" class="hidden text-center py-16 flex-1 flex flex-col items-center justify-center"> 
+                    <div class="text-5xl mb-4">⚠️</div>
+                    <p class="text-red-500 font-bold text-xl mb-2">題庫載入失敗</p> 
+                    <p class="text-slate-500 mb-8">請檢查網路連線，或稍後再試。</p> 
+                    <button onclick="showScreen('categorySelectionScreen')" class="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-semibold transition-colors">返回目錄</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 彈出視窗 (Modals) -->
+        <div id="game-over-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center p-8 animate-slide-up border border-slate-100">
+                <h2 id="game-over-title" class="text-3xl font-black text-red-500 mb-2">挑戰結束！</h2>
+                <div id="medal-container" class="hidden my-6">
+                    <div class="relative w-28 h-28 mx-auto">
+                        <div class="absolute inset-0 bg-amber-200 rounded-full animate-ping opacity-20"></div>
+                        <svg class="relative h-28 w-28 text-amber-400 drop-shadow-lg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v3.344l1.62-1.62a.75.75 0 111.06 1.06l-3.25 3.25a.75.75 0 01-1.06 0L5.88 5.534a.75.75 0 011.06-1.06L8.5 6.094V2.75A.75.75 0 0110 2zM5.05 16.25a.75.75 0 01.93-.52l3.27 1.16a.75.75 0 00.5 0l3.27-1.16a.75.75 0 11.41 1.4l-3.27 1.16a2.25 2.25 0 01-1.5 0L5.46 17.13a.75.75 0 01-.41-1.4z" clip-rule="evenodd"></path>
+                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm0 1.5a9.5 9.5 0 100-19 9.5 9.5 0 000 19z"></path>
+                        </svg>
+                    </div>
+                    <p class="font-bold text-amber-500 mt-3 text-lg tracking-widest">榮耀勳章</p>
+                    <p id="medal-category" class="text-sm text-slate-500 font-medium"></p>
+                </div>
+                <p class="mt-4 text-slate-500 font-medium">本次最高連擊數</p>
+                <div id="final-combo" class="text-7xl font-black my-2 text-slate-800 drop-shadow-sm">0</div>
+                <p id="leaderboard-status" class="h-6 mb-8 text-sm font-semibold text-blue-500 flex items-center justify-center gap-2"></p>
+                <button id="retry-btn" class="w-full bg-slate-800 text-white hover:bg-slate-900 font-bold py-4 px-8 rounded-xl mb-3 transition-all shadow-md">重新挑戰</button>
+                <button id="back-to-category-from-lose" class="w-full bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold py-3 px-8 rounded-xl transition-all">返回大廳</button>
+            </div>
+        </div>
+
+        <div id="leaderboard-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] animate-slide-up border border-slate-100">
+                <div class="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
+                    <h2 id="leaderboard-title" class="text-xl font-bold text-slate-800 flex items-center gap-2"><span class="text-2xl">🏆</span> 排行榜</h2>
+                    <button id="close-leaderboard-btn" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-500 transition-colors font-bold">×</button>
+                </div>
+                <div id="leaderboard-content" class="p-6 overflow-y-auto bg-slate-50 flex-1">
+                    <div id="leaderboard-loading" class="text-center p-10 flex flex-col items-center gap-3">
+                        <div class="w-8 h-8 rounded-full border-4 border-slate-300 border-t-blue-500 animate-spin"></div>
+                        <span class="text-slate-500 font-medium">努力載入中...</span>
+                    </div>
+                    <ul id="leaderboard-list" class="space-y-3 hidden"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="article-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-slide-up">
+                <div class="flex justify-between items-center p-6 border-b border-slate-100">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span class="text-blue-500">📄</span> 參考文章</h2>
+                    <button id="close-modal-btn" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors font-bold">×</button>
+                </div>
+                <div id="modal-content" class="p-8 overflow-y-auto whitespace-pre-line text-lg text-slate-700 leading-relaxed"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // --- Firebase 模組 ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, collection, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 設定 ---
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBBWzGzvTEBiiB1UIRNKHhMgZ_L7o1Dids", 
+            authDomain: "the-incantation.firebaseapp.com", 
+            projectId: "the-incantation", 
+            storageBucket: "the-incantation.appspot.com", 
+            messagingSenderId: "874988798276", 
+            appId: "1:874988798276:web:9f9f2588571678691b5711", 
+            measurementId: "G-TPJ9FRCZL3" 
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-combo-quiz';
+
+        // --- 音效 ---
+        const clickSound = new Audio('https://cdn.pixabay.com/download/audio/2025/08/30/audio_319c456817.mp3?filename=confirm-tap-394001.mp3');
+        const correctSound = new Audio('https://cdn.pixabay.com/download/audio/2021/08/03/audio_7991a32b95.mp3?filename=collect-5930.mp3');
+        const incorrectSound = new Audio('https://cdn.pixabay.com/download/audio/2023/01/04/audio_a1f4a599d9.mp3?filename=error-012-132111.mp3');
+        const victorySound = new Audio('https://cdn.pixabay.com/download/audio/2025/06/26/audio_0ef82a1331.mp3?filename=victory-chime-366449.mp3');
+
+        function playSound(sound) {
+            sound.currentTime = 0;
+            sound.play().catch(() => {}); // Catch silently to avoid autoplay block warnings
+        }
+
+        // --- 題庫設定 ---
+        const quizCategories = [
+            { name: '字彙題', icon: '🔤', type: 'single', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=0&single=true&output=csv', color: 'blue', subtitle: '隨機挑戰，鞏固你的單字實力！' },
+            { name: '對話題', icon: '💬', type: 'single', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=1845426010&single=true&output=csv', color: 'indigo', subtitle: '掌握日常對話的情境與回應。' },
+            { name: '綜合測驗', icon: '🧩', type: 'group', quizMode: 'mcq', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=668575629&single=true&output=csv', color: 'pink', subtitle: '考驗文法與上下文理解能力。' },
+            { name: '閱讀測驗', icon: '📚', type: 'group', quizMode: 'mcq', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=357350881&single=true&output=csv', color: 'orange', subtitle: '提升文章的閱讀與分析速度。' },
+            { name: '填充', icon: '✏️', type: 'fill', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=237120431&single=true&output=csv', color: 'teal', subtitle: '精準用字，完成句子結構。' },
+            { name: '句子重組', icon: '🔄', type: 'reorder_fill', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=1626465194&single=true&output=csv', color: 'amber', subtitle: '理解句法，還原正確語序。' },
+            { name: '中譯英', icon: '🌐', type: 'group', quizMode: 'translation', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJS_9SB3etWQmOQqQ5WXCw5_inuRcNCin2voG1_baH5SIiIG2uqmxJCD-jIqZtnsh_VG42QKtan91b/pub?gid=480015856&single=true&output=csv', color: 'violet', subtitle: '引導式練習，完成整句翻譯。' }
+        ];
+        const colorThemes = {
+            blue:   { main: 'bg-blue-500',   light: 'bg-blue-50',   text: 'text-blue-600',   hover: 'hover:bg-blue-600',   border: 'border-blue-500', ring: 'focus:ring-blue-300', focusBorder: 'focus:border-blue-500', shadow: 'shadow-blue-500/30' },
+            indigo: { main: 'bg-indigo-500', light: 'bg-indigo-50', text: 'text-indigo-600', hover: 'hover:bg-indigo-600', border: 'border-indigo-500', ring: 'focus:ring-indigo-300', focusBorder: 'focus:border-indigo-500', shadow: 'shadow-indigo-500/30' },
+            pink:   { main: 'bg-pink-500',   light: 'bg-pink-50',   text: 'text-pink-600',   hover: 'hover:bg-pink-600',   border: 'border-pink-500', ring: 'focus:ring-pink-300', focusBorder: 'focus:border-pink-500', shadow: 'shadow-pink-500/30' },
+            orange: { main: 'bg-orange-500', light: 'bg-orange-50', text: 'text-orange-600', hover: 'hover:bg-orange-600', border: 'border-orange-500', ring: 'focus:ring-orange-300', focusBorder: 'focus:border-orange-500', shadow: 'shadow-orange-500/30' },
+            teal:   { main: 'bg-teal-500',   light: 'bg-teal-50',   text: 'text-teal-600',   hover: 'hover:bg-teal-600',   border: 'border-teal-500', ring: 'focus:ring-teal-300', focusBorder: 'focus:border-teal-500', shadow: 'shadow-teal-500/30' },
+            amber:  { main: 'bg-amber-500',  light: 'bg-amber-50',  text: 'text-amber-600',  hover: 'hover:bg-amber-600',  border: 'border-amber-500', ring: 'focus:ring-amber-300', focusBorder: 'focus:border-amber-500', shadow: 'shadow-amber-500/30' },
+            violet: { main: 'bg-violet-500', light: 'bg-violet-50', text: 'text-violet-600', hover: 'hover:bg-violet-600', border: 'border-violet-500', ring: 'focus:ring-violet-300', focusBorder: 'focus:border-violet-500', shadow: 'shadow-violet-500/30' },
+        };
+        const allColorClasses = Object.values(colorThemes).flatMap(theme => Object.values(theme));
+        
+        // --- 全域狀態 & DOM 元素 ---
+        let dom = {};
+        let app, db, auth, currentUser, currentPlayerName, currentMode, currentCategory;
+        let allQuizData = []; // 用於選擇年份快取
+        let quizData = []; 
+        let practiceState = {}; 
+        let comboState = {}; 
+        let quizCache = {}; 
+        let hasAnsweredCurrent = false;
+
+        // --- 核心功能 ---
+        async function init() {
+            populateDomObject();
+            attachEventListeners();
+            try { 
+                app = initializeApp(firebaseConfig); 
+                db = getFirestore(app); 
+                auth = getAuth(app); 
+                await signInAnonymously(auth); 
+                onAuthStateChanged(auth, (u) => { currentUser = u; });
+                console.log("Firebase ready."); 
+            } catch(e) { 
+                console.error("Firebase init failed:", e); 
+            }
+            showScreen('modeSelectionScreen');
+        }
+
+        function populateDomObject() {
+            const ids = [ 
+                'mode-selection-screen', 'practice-mode-btn', 'combo-mode-btn', 'login-screen', 'login-form', 'player-name-input', 'back-to-mode-from-login-btn',
+                'category-selection-screen', 'category-title', 'category-subtitle', 'back-to-mode-selection-btn', 'category-container', 
+                'quiz-container', 'quiz-header', 'quiz-icon', 'quiz-title', 'back-to-category-btn', 'combo-display', 'combo-counter', 
+                'year-selection-screen', 'year-buttons', 'progress-wrapper', 'progress-bar', 'progress-text', 'summary-view', 'score-correct', 'score-total', 'restart-btn', 'choose-year-btn',
+                'loading', 'error', 'quiz-content', 'question-number', 'passage-container', 'article-button-container', 'view-article-btn', 
+                'question-text', 'translation-text', 'options-container', 'fill-in-container', 'input-wrapper-1', 'input-wrapper-2', 
+                'fill-in-input-1', 'fill-in-input-2', 'submit-fill-in-btn', 'reorder-fill-container', 'reorder-fill-input', 'submit-reorder-fill-btn', 
+                'translation-container', 'translation-input', 'submit-translation-btn', 'feedback-container', 'explanation-card', 'feedback-icon', 'correct-answer', 'explanation-text', 'next-question-btn', 
+                'game-over-modal', 'game-over-title', 'medal-container', 'medal-category', 'final-combo', 'leaderboard-status', 'retry-btn', 'back-to-category-from-lose', 
+                'leaderboard-modal', 'leaderboard-title', 'close-leaderboard-btn', 'leaderboard-content', 'leaderboard-loading', 'leaderboard-list', 
+                'article-modal', 'close-modal-btn', 'modal-content' 
+            ];
+            ids.forEach(id => {
+                const camelCaseId = id.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+                dom[camelCaseId] = document.getElementById(id);
+            });
+        }
+        
+        function showScreen(screenName) {
+            ['modeSelectionScreen', 'loginScreen', 'categorySelectionScreen', 'quizContainer', 'gameOverModal', 'leaderboardModal', 'articleModal', 'yearSelectionScreen', 'summaryView', 'error'].forEach(s => dom[s] && dom[s].classList.add('hidden'));
+            if(dom[screenName]) dom[screenName].classList.remove('hidden');
+            
+            if (screenName === 'categorySelectionScreen') {
+                dom.categoryTitle.textContent = currentMode === 'practice' ? '練習模式' : `挑戰賽`;
+                dom.categorySubtitle.textContent = currentMode === 'practice' ? '紮實基礎，精熟歷屆試題。' : `歡迎，${currentPlayerName}！準備好刷新最高連擊了嗎？`;
+                renderCategoryMenu();
+            }
+        }
+        
+        function applyTheme(color) {
+            const theme = colorThemes[color] || colorThemes.blue;
+            const themedElements = document.querySelectorAll('.themed-btn, .themed-btn-light, .themed-input, #progress-bar, .blank-box');
+            
+            dom.quizHeader.classList.remove(...Object.values(colorThemes).map(t => t.main));
+            dom.quizHeader.classList.add(theme.main);
+
+            themedElements.forEach(el => {
+                el.classList.remove(...allColorClasses, 'btn-glow');
+                if (el.matches('.themed-btn')) {
+                    el.classList.add(theme.main, theme.hover, `focus:ring-2`, theme.ring, `shadow-lg`, theme.shadow);
+                } else if (el.matches('.themed-btn-light')) {
+                    el.classList.add(theme.light, theme.text);
+                } else if (el.matches('.themed-input')) {
+                    el.classList.add('focus:ring-4', theme.ring, theme.focusBorder);
+                } else if (el.id === 'progress-bar') {
+                    el.classList.add(theme.main);
+                } else if (el.classList.contains('blank-box')) {
+                    el.classList.add(theme.text); 
+                }
+            });
+        }
+
+        // Markdown 處理與防呆
+        function formatText(text) {
+            if (typeof text !== 'string' || !text) return '';
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<b class="font-bold text-slate-900">$1</b>')
+                .replace(/\*(.*?)\*/g, '<i class="italic text-slate-700">$1</i>');
+        }
+
+        const sanitizeStr = (str) => (str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        
+        // --- API & 資料載入 ---
+        async function fetchQuizData(category) {
+            if (quizCache[category.name]) return quizCache[category.name];
+            
+            const res = await fetch(category.url);
+            if (!res.ok) throw new Error("Fetch failed");
+            const csv = await res.text();
+            
+            let parsedData = [];
+            if (category.type === 'group') {
+                if (category.quizMode === 'translation') parsedData = parseTranslationGroupQuestions(csv);
+                else parsedData = parseMcqGroupQuestions(csv);
+            } else if (category.type === 'fill') {
+                parsedData = parseFillInQuestions(csv);
+            } else if (category.type === 'reorder_fill') {
+                parsedData = parseReorderFillQuestions(csv);
+            } else {
+                parsedData = parseSingleQuestions(csv);
+            }
+            if (parsedData.length === 0) throw new Error("No questions parsed");
+            
+            quizCache[category.name] = parsedData;
+            return parsedData;
+        }
+
+        // --- Practice Mode Logic ---
+        async function loadPracticeCategory(category) {
+            currentCategory = category;
+            showScreen('quizContainer');
+            dom.comboDisplay.classList.add('hidden');
+            dom.progressWrapper.classList.add('hidden');
+            dom.quizContent.classList.add('hidden');
+            dom.loading.classList.remove('hidden');
+            applyTheme(category.color);
+            dom.quizTitle.textContent = category.name;
+            dom.quizIcon.textContent = category.icon;
+
+            try {
+                allQuizData = await fetchQuizData(category);
+                showYearSelection();
+            } catch (e) {
+                console.error(e);
+                dom.loading.classList.add('hidden');
+                dom.error.classList.remove('hidden');
+            }
+        }
+
+        function showYearSelection() {
+            dom.loading.classList.add('hidden');
+            dom.quizContent.classList.add('hidden');
+            dom.summaryView.classList.add('hidden');
+            dom.yearSelectionScreen.classList.remove('hidden');
+
+            let years = new Set();
+            allQuizData.forEach(item => {
+                const idText = Array.isArray(item) ? item[0].id : item.id;
+                const match = idText.match(/^(\d+)/); 
+                if (match) years.add(match[1]);
+            });
+
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            dom.yearButtons.innerHTML = '';
+            const theme = colorThemes[currentCategory.color];
+
+            const allBtn = document.createElement('button');
+            allBtn.className = `year-btn px-6 py-3 rounded-2xl font-bold border-2 ${theme.border} ${theme.text} ${theme.hover} hover:text-white shadow-sm hover:shadow-md w-full sm:w-auto min-w-[140px]`;
+            allBtn.textContent = '全部年度混合';
+            allBtn.onclick = () => filterAndStartPractice('all');
+            dom.yearButtons.appendChild(allBtn);
+
+            sortedYears.forEach(year => {
+                const btn = document.createElement('button');
+                btn.className = `year-btn px-6 py-3 rounded-2xl font-semibold border-2 border-slate-200 text-slate-600 hover:border-${currentCategory.color}-400 hover:text-${currentCategory.color}-600 bg-white hover:${theme.light} shadow-sm hover:shadow-md w-full sm:w-auto min-w-[120px]`;
+                btn.textContent = `${year} 學年`;
+                btn.onclick = () => filterAndStartPractice(year);
+                dom.yearButtons.appendChild(btn);
+            });
+        }
+
+        function filterAndStartPractice(selectedYear) {
+            playSound(clickSound);
+            dom.yearSelectionScreen.classList.add('hidden');
+            dom.summaryView.classList.add('hidden');
+            
+            if (selectedYear === 'all') {
+                quizData = [...allQuizData];
+            } else {
+                quizData = allQuizData.filter(item => {
+                    const idText = Array.isArray(item) ? item[0].id : item.id;
+                    return idText.startsWith(selectedYear);
+                });
+            }
+
+            practiceState = {
+                shuffledIndices: Array.from(Array(quizData.length).keys()),
+                currentIndex: 0,
+                currentSubIndex: 0,
+                correctCount: 0,
+                totalQuestions: 0,
+                answeredQuestions: 0,
+                currentYear: selectedYear
+            };
+            
+            quizData.forEach(item => {
+                if(Array.isArray(item)) practiceState.totalQuestions += item.length;
+                else practiceState.totalQuestions++;
+            });
+
+            shuffleArray(practiceState.shuffledIndices);
+            dom.progressWrapper.classList.remove('hidden');
+            dom.quizContent.classList.remove('hidden');
+            displayPracticeQuestion();
+        }
+
+        function updateProgress() {
+            practiceState.answeredQuestions++;
+            dom.progressText.textContent = `進度 ${practiceState.answeredQuestions} / ${practiceState.totalQuestions}`;
+            const percent = (practiceState.answeredQuestions / practiceState.totalQuestions) * 100;
+            dom.progressBar.style.width = `${percent}%`;
+        }
+
+        function displayPracticeQuestion() {
+            hasAnsweredCurrent = false;
+            dom.feedbackContainer.classList.add("hidden");
+            dom.nextQuestionBtn.classList.add("hidden");
+            dom.nextQuestionBtn.classList.remove('btn-glow');
+            
+            [dom.fillInInput1, dom.fillInInput2, dom.reorderFillInput, dom.translationInput].forEach(el => {
+                if(el) { el.value = ''; el.disabled = false; el.classList.remove('bg-slate-50', 'text-slate-500'); }
+            });
+            [dom.submitFillInBtn, dom.submitReorderFillBtn, dom.submitTranslationBtn].forEach(el => el.disabled = false);
+
+            ['optionsContainer', 'fillInContainer', 'reorderFillContainer', 'translationContainer', 'passageContainer', 'articleButtonContainer'].forEach(id => dom[id] && dom[id].classList.add("hidden"));
+            if(dom.translationText) dom.translationText.textContent = "";
+
+            let question;
+            if (currentCategory.type === 'group') {
+                const group = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+                question = group[practiceState.currentSubIndex];
+                dom.passageContainer.classList.remove("hidden");
+                const passageContentEl = dom.passageContainer.querySelector(".passage-content") || dom.passageContainer;
+
+                if (currentCategory.quizMode === 'translation') {
+                    dom.translationContainer.classList.remove("hidden");
+                    setTimeout(() => dom.translationInput.focus(), 100);
+                    setHtml(passageContentEl, `<div class="text-sm font-bold text-slate-400 mb-1">目標翻譯：</div><span class="font-bold text-lg text-slate-800">${formatText(question.mainSentence)}</span>`);
+                    dom.questionText.innerHTML = `<span class="text-sm font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md mr-2">提示 (${practiceState.currentSubIndex + 1}/${group.length})</span>${formatText(question.prompt)}`;
+                } else { 
+                    dom.optionsContainer.classList.remove("hidden");
+                    let passageHtml = formatText(question.question).replace(/__(\d+)__/g, '<span class="blank-box mx-1">__$1__</span>');
+                    setHtml(passageContentEl, passageHtml);
+                    const dynamicTitle = currentCategory.name === "閱讀測驗" ? "請根據文章內容，回答下列問題：" : "請根據上下文，選擇最適當的答案。";
+                    setHtml(dom.questionText, formatText(dynamicTitle));
+                    if (group[0].fullArticle && group[0].fullArticle.trim() !== "") dom.articleButtonContainer.classList.remove("hidden");
+                    renderOptions(question);
+                }
+            } else if (currentCategory.type === 'fill') {
+                question = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+                dom.fillInContainer.classList.remove("hidden");
+                setTimeout(() => dom.fillInInput1.focus(), 100);
+                setHtml(dom.questionText, formatText(question.question));
+                dom.translationText.textContent = question.translation || "";
+                if (question.answer2 && question.answer2.trim() !== "") dom.inputWrapper2.classList.remove("hidden"); else dom.inputWrapper2.classList.add("hidden");
+            } else if (currentCategory.type === 'reorder_fill') {
+                question = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+                dom.reorderFillContainer.classList.remove("hidden");
+                setTimeout(() => dom.reorderFillInput.focus(), 100);
+                dom.questionText.innerHTML = `請重組下列單字：<br><span class="font-bold text-2xl text-slate-800 tracking-wide inline-block mt-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">${formatText(question.question)}</span>`;
+                dom.translationText.textContent = question.translation || "";
+            } else { 
+                question = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+                dom.optionsContainer.classList.remove("hidden");
+                setHtml(dom.questionText, formatText(question.question));
+                renderOptions(question);
+            }
+            dom.questionNumber.textContent = `第 ${question.id} 題`;
+            updateProgress();
+            applyTheme(currentCategory.color);
+        }
+
+        function checkPracticeAnswer({ userAnswer = null, selectedButton = null }) {
+            hasAnsweredCurrent = true;
+            let question, currentGroup, isCorrect = false, feedbackText = "", feedbackBorderColor = "border-red-400", icon = "❌";
+            
+            if (currentCategory.type === 'group') {
+                currentGroup = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+                question = currentGroup[practiceState.currentSubIndex];
+            } else {
+                question = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+            }
+            feedbackText = question.explanation || "無詳細解析。";
+
+            if (currentCategory.type === 'fill') {
+                const u1 = sanitizeStr(dom.fillInInput1.value), c1 = sanitizeStr(question.answer1);
+                if (question.answer2 && "" !== question.answer2.trim()) {
+                    const u2 = sanitizeStr(dom.fillInInput2.value), c2 = sanitizeStr(question.answer2);
+                    if (u1 === c1 && u2 === c2) isCorrect = true;
+                } else {
+                    if (u1 === c1) isCorrect = true;
+                }
+                [dom.fillInInput1, dom.fillInInput2, dom.submitFillInBtn].forEach(el => { el.disabled = true; el.classList.add('bg-slate-50', 'text-slate-500'); });
+            } else if (currentCategory.type === 'reorder_fill' || (currentCategory.type === 'group' && currentCategory.quizMode === 'translation')) {
+                const inputEl = currentCategory.quizMode === 'translation' ? dom.translationInput : dom.reorderFillInput;
+                const submitBtn = currentCategory.quizMode === 'translation' ? dom.submitTranslationBtn : dom.submitReorderFillBtn;
+                const uText = inputEl.value.trim(), cText = question.answer.trim();
+                inputEl.disabled = true; inputEl.classList.add('bg-slate-50', 'text-slate-500'); submitBtn.disabled = true;
+                
+                const uLower = sanitizeStr(uText), cLower = sanitizeStr(cText);
+                if (uLower === cLower) {
+                    isCorrect = true;
+                    if(uText !== cText) feedbackText = "答對了！(但請注意大小寫可能不同)<br>" + feedbackText;
+                    else feedbackText = question.explanation || "答對了！做得很好！";
+                } else {
+                    const punc = [".", "?", "!"], lastChar = cText.slice(-1);
+                    if (punc.includes(lastChar) && uLower === sanitizeStr(cText.slice(0, -1))) {
+                        isCorrect = true;
+                        feedbackText = `算你對！但下次別忘了結尾的標點符號「${lastChar}」喔！<br>` + feedbackText;
+                    }
+                }
+            } else {
+                if (userAnswer === question.answer) isCorrect = true;
+            }
+
+            dom.optionsContainer.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+            if (isCorrect) {
+                practiceState.correctCount++;
+                playSound(correctSound);
+                feedbackBorderColor = 'border-green-400 bg-green-50';
+                icon = '✅';
+                confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 }, colors: ['#10b981', '#3b82f6', '#f59e0b'] });
+                if (selectedButton) selectedButton.classList.add("correct");
+            } else {
+                playSound(incorrectSound);
+                feedbackBorderColor = 'border-red-400 bg-red-50';
+                icon = '❌';
+                if (selectedButton) {
+                    selectedButton.classList.add("incorrect");
+                    dom.optionsContainer.querySelector(`[data-answer="${question.answer}"]`)?.classList.add("correct");
+                } else if(currentCategory.type === 'single' || (currentCategory.type === 'group' && currentCategory.quizMode === 'mcq')) {
+                    dom.optionsContainer.querySelector(`[data-answer="${question.answer}"]`)?.classList.add("correct");
+                }
+            }
+            
+            dom.feedbackIcon.textContent = icon;
+            dom.explanationCard.className = `border-l-4 p-5 rounded-r-2xl shadow-sm transition-all ${feedbackBorderColor}`;
+            dom.explanationCard.classList.remove("hidden");
+
+            let cAnsText = "";
+            if (currentCategory.type === 'fill') {
+                cAnsText = (question.answer2 && "" !== question.answer2.trim()) ? `(1) ${question.answer1} (2) ${question.answer2}` : question.answer1;
+            } else {
+                cAnsText = question.answer;
+            }
+            dom.correctAnswer.textContent = cAnsText;
+            setHtml(dom.explanationText, formatText(feedbackText));
+            dom.feedbackContainer.classList.remove('hidden');
+
+            let nextText = "下一題";
+            if (currentCategory.type === 'group') {
+                if (practiceState.currentSubIndex >= currentGroup.length - 1) {
+                    nextText = (practiceState.currentIndex >= practiceState.shuffledIndices.length - 1) ? "查看結果" : "下個題組";
+                }
+            } else {
+                if (practiceState.currentIndex >= practiceState.shuffledIndices.length - 1) nextText = "查看結果";
+            }
+            
+            dom.nextQuestionBtn.textContent = nextText;
+            if(nextText === "查看結果") dom.nextQuestionBtn.classList.add('btn-glow', colorThemes[currentCategory.color].main);
+            dom.nextQuestionBtn.classList.remove("hidden");
+            
+            setTimeout(() => { dom.nextQuestionBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+        }
+
+        function handleNextPracticeQuestion() {
+            let isEnd = false;
+            if (currentCategory.type === 'group') {
+                const currentGroup = quizData[practiceState.shuffledIndices[practiceState.currentIndex]];
+                if (practiceState.currentSubIndex < currentGroup.length - 1) {
+                    practiceState.currentSubIndex++;
+                } else {
+                    practiceState.currentIndex++;
+                    practiceState.currentSubIndex = 0;
+                }
+            } else {
+                practiceState.currentIndex++;
+            }
+
+            if (practiceState.currentIndex >= practiceState.shuffledIndices.length) isEnd = true;
+
+            if (isEnd) showPracticeSummary();
+            else displayPracticeQuestion();
+        }
+
+        function showPracticeSummary() {
+            dom.quizContent.classList.add('hidden');
+            dom.summaryView.classList.remove('hidden');
+            
+            dom.scoreTotal.textContent = practiceState.totalQuestions;
+            dom.scoreCorrect.textContent = '0';
+            
+            let currentDisplayScore = 0;
+            const duration = 1000;
+            const stepTime = Math.max(duration / Math.max(practiceState.correctCount, 1), 20);
+            
+            const timer = setInterval(() => {
+                if(currentDisplayScore >= practiceState.correctCount) {
+                    clearInterval(timer);
+                    dom.scoreCorrect.textContent = practiceState.correctCount;
+                    if(practiceState.correctCount === practiceState.totalQuestions && practiceState.totalQuestions > 0) {
+                        triggerGrandFinaleConfetti();
+                    }
+                } else {
+                    currentDisplayScore++;
+                    dom.scoreCorrect.textContent = currentDisplayScore;
+                }
+            }, stepTime);
+        }
+
+        // --- Combo Mode Logic ---
+        async function startChallenge(category) {
+            currentCategory = category;
+            showScreen('quizContainer');
+            dom.progressWrapper.classList.add('hidden');
+            dom.comboDisplay.classList.remove('hidden');
+            dom.comboCounter.textContent = 0; 
+            dom.loading.classList.remove('hidden');
+            dom.quizContent.classList.add('hidden');
+            applyTheme(category.color);
+            dom.quizTitle.textContent = `挑戰 - ${category.name}`;
+            dom.quizIcon.textContent = category.icon;
+            
+            try {
+                const data = await fetchQuizData(category);
+                setupComboChallenge(data);
+            } catch(e) {
+                console.error(e);
+                dom.loading.classList.add('hidden');
+                dom.error.classList.remove('hidden');
+            }
+        }
+
+        function setupComboChallenge(data) {
+            let questionsForChallenge;
+            if (currentCategory.type === 'group') {
+                let deepCopy = JSON.parse(JSON.stringify(data));
+                shuffleArray(deepCopy);
+                questionsForChallenge = deepCopy.flat();
+                questionsForChallenge.forEach((q, index, arr) => {
+                    if (q.fullArticle) return;
+                    const groupStart = arr.findIndex(item => item.id.startsWith(q.id.split('-').slice(0, 2).join('-')));
+                    if (groupStart !== -1 && arr[groupStart].fullArticle) q.fullArticle = arr[groupStart].fullArticle;
+                });
+            } else {
+                questionsForChallenge = [...data];
+                shuffleArray(questionsForChallenge);
+            }
+
+            comboState = {
+                questions: questionsForChallenge,
+                comboCount: 0,
+                currentIndex: 0
+            };
+            
+            dom.comboCounter.textContent = 0;
+            dom.loading.classList.add('hidden');
+            dom.quizContent.classList.remove('hidden');
+            displayChallengeQuestion();
+        }
+        
+        function displayChallengeQuestion() {
+            hasAnsweredCurrent = false;
+            dom.feedbackContainer.classList.add("hidden");
+            dom.nextQuestionBtn.classList.add("hidden");
+            
+            [dom.fillInInput1, dom.fillInInput2, dom.reorderFillInput, dom.translationInput].forEach(el => {
+                if(el) { el.value = ''; el.disabled = false; el.classList.remove('bg-slate-50', 'text-slate-500'); }
+            });
+            [dom.submitFillInBtn, dom.submitReorderFillBtn, dom.submitTranslationBtn].forEach(el => el.disabled = false);
+
+            const question = comboState.questions[comboState.currentIndex];
+            if (!question) {
+                showGameOverScreen(true);
+                return;
+            } 
+
+            dom.questionNumber.textContent = `第 ${comboState.currentIndex + 1} 題`;
+            ['optionsContainer', 'fillInContainer', 'reorderFillContainer', 'translationContainer', 'passageContainer', 'articleButtonContainer'].forEach(c => dom[c] && dom[c].classList.add("hidden"));
+
+            if (question.mainSentence) { 
+                dom.passageContainer.classList.remove("hidden");
+                dom.translationContainer.classList.remove("hidden");
+                setTimeout(() => dom.translationInput.focus(), 100);
+                const pc = dom.passageContainer.querySelector(".passage-content") || dom.passageContainer;
+                setHtml(pc, `<p class="text-sm font-medium text-slate-600">整句題目：</p><p class="mb-2 font-semibold text-lg text-slate-800">${formatText(question.mainSentence)}</p><p class="text-sm font-medium text-slate-600">本階段說明：</p><p>${formatText(question.explanation)}</p>`);
+                dom.questionText.innerHTML = `引導提示：<br><span class="font-semibold">${formatText(question.prompt)}</span>`;
+            } else if (question.options) { 
+                if (question.question.includes('__')) { 
+                     dom.passageContainer.classList.remove("hidden");
+                     const pc = dom.passageContainer.querySelector(".passage-content") || dom.passageContainer;
+                     setHtml(pc, formatText(question.question).replace(/__(\d+)__/g, '<span class="blank-box mx-1">__$1__</span>'));
+                     dom.questionText.textContent = "請根據以上文章，選擇最適當的答案。";
+                } else {
+                    setHtml(dom.questionText, formatText(question.question));
+                }
+                dom.optionsContainer.classList.remove("hidden");
+                if (question.fullArticle) dom.articleButtonContainer.classList.remove("hidden");
+                renderOptions(question);
+            } else if (question.answer1) { 
+                dom.fillInContainer.classList.remove("hidden");
+                setTimeout(() => dom.fillInInput1.focus(), 100);
+                setHtml(dom.questionText, formatText(question.question));
+                dom.translationText.textContent = question.translation || "";
+                if (question.answer2) dom.inputWrapper2.classList.remove("hidden"); else dom.inputWrapper2.classList.add("hidden");
+            } else { 
+                dom.reorderFillContainer.classList.remove("hidden");
+                setTimeout(() => dom.reorderFillInput.focus(), 100);
+                dom.questionText.innerHTML = `請重組下列單字：<br><span class="font-bold text-2xl text-slate-800 tracking-wide inline-block mt-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">${formatText(question.question)}</span>`;
+                dom.translationText.textContent = "";
+            }
+            applyTheme(currentCategory.color);
+        }
+
+        function checkChallengeAnswer({ userAnswer = null, selectedButton = null }) {
+            hasAnsweredCurrent = true;
+            const question = comboState.questions[comboState.currentIndex];
+            let isCorrect = false;
+
+            if (question.options) {
+                if (userAnswer === question.answer) isCorrect = true;
+            } else if (question.answer1) {
+                const u1 = sanitizeStr(dom.fillInInput1.value), c1 = sanitizeStr(question.answer1);
+                if (question.answer2) {
+                    const u2 = sanitizeStr(dom.fillInInput2.value), c2 = sanitizeStr(question.answer2);
+                    if ((u1 === c1 && u2 === c2) || (u1 === c2 && u2 === c1)) isCorrect = true;
+                } else {
+                    if (u1 === c1) isCorrect = true;
+                }
+                [dom.fillInInput1, dom.fillInInput2, dom.submitFillInBtn].forEach(el => { el.disabled = true; el.classList.add('bg-slate-50', 'text-slate-500'); });
+            } else {
+                const inputEl = question.mainSentence ? dom.translationInput : dom.reorderFillInput;
+                const btn = question.mainSentence ? dom.submitTranslationBtn : dom.submitReorderFillBtn;
+                const uText = inputEl.value.trim(), cText = question.answer.trim();
+                inputEl.disabled = true; inputEl.classList.add('bg-slate-50', 'text-slate-500'); btn.disabled = true;
+                
+                const uLower = sanitizeStr(uText), cLower = sanitizeStr(cText);
+                if (uLower === cLower) {
+                    isCorrect = true;
+                } else {
+                    const punc = [".", "?", "!"], lastChar = cText.slice(-1);
+                    if (punc.includes(lastChar) && uLower === sanitizeStr(cText.slice(0, -1))) isCorrect = true;
+                }
+            }
+
+            dom.optionsContainer.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+            let feedbackText = question.explanation || "無詳細解析。";
+            let feedbackBorderColor = "border-red-400"; 
+            let icon = "❌";
+
+            if (isCorrect) {
+                playSound(correctSound);
+                feedbackBorderColor = colorThemes[currentCategory.color].border;
+                icon = "✅";
+                if (selectedButton) selectedButton.classList.add("correct");
+                
+                comboState.comboCount++;
+                dom.comboCounter.textContent = comboState.comboCount;
+                dom.comboCounter.classList.add("combo-pop-animation");
+                confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+                setTimeout(() => dom.comboCounter.classList.remove("combo-pop-animation"), 300);
+
+                dom.nextQuestionBtn.textContent = "下一題";
+                dom.nextQuestionBtn.classList.remove("hidden");
+            } else {
+                playSound(incorrectSound);
+                feedbackBorderColor = 'border-red-400 bg-red-50';
+                if (selectedButton) {
+                    selectedButton.classList.add("incorrect");
+                    dom.optionsContainer.querySelector(`[data-answer="${question.answer}"]`)?.classList.add("correct");
+                }
+                dom.nextQuestionBtn.textContent = "挑戰結束";
+                dom.nextQuestionBtn.classList.add('bg-red-500', 'hover:bg-red-600', 'btn-glow');
+                dom.nextQuestionBtn.classList.remove("hidden", colorThemes[currentCategory.color].main);
+            }
+
+            dom.feedbackIcon.textContent = icon;
+            dom.explanationCard.classList.remove("hidden");
+            let cAnsText = "";
+            if (question.options && question.options[question.answer]) {
+                cAnsText = `${question.answer}. ${question.options[question.answer]}`;
+            } else if (question.answer1) {
+                cAnsText = (question.answer2 && "" !== question.answer2.trim()) ? `(1) ${question.answer1} (2) ${question.answer2}` : question.answer1;
+            } else {
+                cAnsText = question.answer;
+            }
+            
+            dom.correctAnswer.textContent = cAnsText;
+            setHtml(dom.explanationText, formatText(feedbackText));
+            dom.explanationCard.className = `border-l-4 p-5 rounded-r-2xl shadow-sm transition-all ${feedbackBorderColor}`;
+            dom.feedbackContainer.classList.remove("hidden");
+            setTimeout(() => { dom.nextQuestionBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+        }
+
+        function showGameOverScreen(isWin = false) {
+            dom.gameOverModal.classList.remove('hidden');
+            const titleEl = dom.gameOverTitle;
+
+            if (isWin || comboState.comboCount === comboState.questions.length) {
+                playSound(victorySound);
+                titleEl.textContent = '挑戰完全通關！';
+                titleEl.className = 'text-3xl font-black text-green-500 mb-2';
+                dom.medalContainer.classList.remove('hidden');
+                dom.medalCategory.textContent = `征服 ${currentCategory.name}`;
+                triggerGrandFinaleConfetti();
+            } else {
+                titleEl.textContent = '挑戰結束！';
+                titleEl.className = 'text-3xl font-black text-red-500 mb-2';
+                dom.medalContainer.classList.add('hidden');
+            }
+            dom.finalCombo.textContent = comboState.comboCount;
+            dom.leaderboardStatus.textContent = "";
+            if(comboState.comboCount > 0) submitScore(currentCategory.name, comboState.comboCount);
+        }
+        
+        // --- Shared Functions ---
+        function renderCategoryMenu() {
+            dom.categoryContainer.innerHTML = "";
+            quizCategories.forEach(cat => {
+                const card = document.createElement("div");
+                card.className = "category-btn bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden cursor-pointer group relative";
+                
+                let content = `<div class="p-6"><div class="text-4xl mb-3 transition-transform group-hover:scale-110 group-hover:-rotate-3">${cat.icon}</div><h3 class="font-bold text-xl text-${cat.color}-600">${cat.name}</h3><p class="text-sm text-slate-500 mt-2">${cat.subtitle}</p>`;
+                if (currentMode === "combo") {
+                    content += `<div class="mt-5 flex gap-2"><button class="start-challenge-btn flex-1 text-sm bg-${cat.color}-500 text-white font-bold py-2.5 px-3 rounded-xl hover:bg-${cat.color}-600 shadow-sm">開始挑戰</button><button class="view-leaderboard-btn text-sm text-${cat.color}-600 font-bold py-2.5 px-4 rounded-xl hover:bg-${cat.color}-50 border border-${cat.color}-100">排行榜</button></div>`;
+                }
+                content += "</div>";
+                setHtml(card, content);
+
+                if (currentMode === "combo") {
+                    card.querySelector(".start-challenge-btn").onclick = e => { e.stopPropagation(); playSound(clickSound); startChallenge(cat); };
+                    card.querySelector(".view-leaderboard-btn").onclick = e => { e.stopPropagation(); playSound(clickSound); showLeaderboard(cat); };
+                } else {
+                    card.onclick = () => { playSound(clickSound); loadPracticeCategory(cat); };
+                }
+                dom.categoryContainer.appendChild(card);
+            });
+        }
+        
+        function renderOptions(question) {
+            dom.optionsContainer.innerHTML = '';
+            Object.entries(question.options).forEach(([key, value]) => {
+                if (!value || value.trim() === '') return;
+                const button = document.createElement('button');
+                button.className = `option-btn w-full text-left p-4 border-2 border-slate-200 bg-white rounded-xl hover:bg-slate-50 focus:outline-none disabled:opacity-75 flex items-center hover:border-slate-300 shadow-sm`;
+                button.dataset.answer = key;
+                const isImg = /\.(jpeg|jpg|gif|png|svg)$/i.test(value.trim());
+                
+                let contentHtml = isImg && value.trim().startsWith('http') 
+                    ? `<img src="${value.trim()}" class="max-h-28 rounded-lg shadow-sm border border-slate-100 mt-2">` 
+                    : `<span class="text-lg text-slate-700 leading-snug">${formatText(value)}</span>`;
+                
+                setHtml(button, `<div class="option-letter mr-4 flex-shrink-0">${key}</div><div class="flex-1 py-1">${contentHtml}</div>`);
+                button.onclick = e => currentMode === 'practice' ? checkPracticeAnswer({ userAnswer: key, selectedButton: button }) : checkChallengeAnswer({ userAnswer: key, selectedButton: button });
+                dom.optionsContainer.appendChild(button);
+            });
+        }
+
+        function showFullArticle() {
+            playSound(clickSound);
+            const s = currentMode === 'practice' ? practiceState : comboState;
+            if (!s) return;
+            let q;
+            if (currentMode === 'practice') {
+                 if (currentCategory.type === 'group') q = quizData[s.shuffledIndices[s.currentIndex]][s.currentSubIndex];
+                 else q = quizData[s.shuffledIndices[s.currentIndex]];
+            } else {
+                q = s.questions[s.currentIndex];
+            }
+
+            if (!q || !q.fullArticle) return;
+            const a = q.fullArticle.trim();
+            if (a) {
+                dom.modalContent.innerHTML = "";
+                const isImg = /\.(jpeg|jpg|gif|png|svg)$/i.test(a);
+                if (isImg && a.startsWith("http")) {
+                    const m = document.createElement("img");
+                    m.src = a; m.className = "w-full h-auto mx-auto rounded-xl shadow-sm";
+                    dom.modalContent.appendChild(m);
+                } else {
+                    setHtml(dom.modalContent, formatText(a));
+                }
+                dom.articleModal.classList.remove('hidden');
+                void dom.articleModal.offsetWidth;
+                dom.articleModal.classList.remove('opacity-0');
+            }
+        }
+
+        async function submitScore(categoryName, score) {
+            if (!db || !currentUser || !currentPlayerName) {
+                dom.leaderboardStatus.textContent = "無法驗證連線狀態，成績未上傳。";
+                return;
+            }
+            dom.leaderboardStatus.textContent = "正在上傳成績...";
+            dom.leaderboardStatus.className = 'h-6 mb-8 text-sm font-bold text-blue-500 flex items-center justify-center gap-2 animate-pulse';
+            
+            try {
+                // Rule 1 Compliant Path
+                await addDoc(collection(db, "artifacts", appId, "public", "data", "combo_leaderboard"), {
+                    playerName: currentPlayerName,
+                    category: categoryName,
+                    combo: score,
+                    timestamp: serverTimestamp()
+                });
+                dom.leaderboardStatus.className = 'h-6 mb-8 text-sm font-bold text-green-500 flex items-center justify-center gap-2';
+                dom.leaderboardStatus.textContent = "成績已成功登錄排行榜！";
+            } catch (error) {
+                console.error("Score submission failed:", error);
+                dom.leaderboardStatus.className = 'h-6 mb-8 text-sm font-bold text-red-500 flex items-center justify-center gap-2';
+                dom.leaderboardStatus.textContent = "成績上傳失敗，請檢查網路。";
+            }
+        }
+
+        async function showLeaderboard(category) {
+            dom.leaderboardTitle.innerHTML = `<span class="text-2xl">🏆</span> ${category.name} - 英雄榜`;
+            dom.leaderboardList.innerHTML = '';
+            dom.leaderboardLoading.classList.remove('hidden');
+            dom.leaderboardList.classList.add('hidden');
+            dom.leaderboardModal.classList.remove('hidden');
+            
+            if (!db || !currentUser) {
+                dom.leaderboardLoading.innerHTML = '<span class="text-red-500">無法連線至資料庫。</span>';
+                return;
+            }
+            try {
+                // Rule 2 Compliant Query (No where(), memory filter)
+                const querySnapshot = await getDocs(collection(db, "artifacts", appId, "public", "data", "combo_leaderboard"));
+                const scores = [];
+                querySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if(data.category === category.name) scores.push(data);
+                });
+                
+                scores.sort((a, b) => {
+                    if (b.combo !== a.combo) return b.combo - a.combo;
+                    return (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0);
+                });
+
+                const topScores = scores.slice(0, 10);
+
+                dom.leaderboardLoading.classList.add('hidden');
+                dom.leaderboardList.classList.remove('hidden');
+                
+                if (topScores.length === 0) {
+                    dom.leaderboardList.innerHTML = '<li class="text-center text-slate-500 py-4 bg-white rounded-xl border border-slate-100">還沒有人挑戰過，快來搶下首殺！</li>';
+                    return;
+                }
+                
+                topScores.forEach((score, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center justify-between p-4 rounded-xl bg-white border border-slate-100 shadow-sm';
+                    let rankDisplay = `<span class="font-black text-xl w-8 text-slate-400">${index + 1}.</span>`;
+                    if(index === 0) rankDisplay = `<span class="text-2xl w-8 mr-1">🥇</span>`;
+                    if(index === 1) rankDisplay = `<span class="text-2xl w-8 mr-1">🥈</span>`;
+                    if(index === 2) rankDisplay = `<span class="text-2xl w-8 mr-1">🥉</span>`;
+                    
+                    li.innerHTML = `<div class="flex items-center">${rankDisplay}<span class="font-bold text-slate-700 ml-2">${score.playerName}</span></div><div class="flex items-baseline gap-1"><span class="font-black text-2xl text-${category.color}-500">${score.combo}</span><span class="text-xs font-bold text-slate-400">Combo</span></div>`;
+                    if (index < 3) li.classList.add('bg-gradient-to-r', 'from-amber-50', 'to-white', 'border-amber-100');
+                    if (score.playerName === currentPlayerName) li.classList.add('ring-2', `ring-${category.color}-300`);
+                    dom.leaderboardList.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Error fetching leaderboard:", error);
+                dom.leaderboardLoading.innerHTML = '<span class="text-red-500">讀取排行榜失敗，請稍後再試。</span>';
+            }
+        }
+        
+        function triggerGrandFinaleConfetti() {
+            const duration = 2 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+            }, 250);
+        }
+
+        // --- Event Listeners ---
+        function attachEventListeners() {
+            document.body.addEventListener('click', (e) => { if (e.target.closest('button')) playSound(clickSound); });
+            
+            dom.practiceModeBtn.onclick = () => { currentMode = 'practice'; showScreen('categorySelectionScreen'); };
+            dom.comboModeBtn.onclick = () => { currentMode = 'combo'; showScreen('loginScreen'); setTimeout(()=>dom.playerNameInput.focus(),100); };
+            dom.backToModeSelectionBtn.onclick = () => showScreen('modeSelectionScreen');
+            dom.backToModeFromLoginBtn.onclick = () => showScreen('modeSelectionScreen');
+            
+            dom.loginForm.onsubmit = (e) => { e.preventDefault(); const name = dom.playerNameInput.value.trim(); if(name) { currentPlayerName = name; showScreen('categorySelectionScreen'); } };
+            dom.backToCategoryBtn.onclick = () => showScreen('categorySelectionScreen');
+            dom.backToCategoryFromLose.onclick = () => { dom.gameOverModal.classList.add('hidden'); showScreen('categorySelectionScreen'); };
+            
+            dom.retryBtn.onclick = () => { dom.gameOverModal.classList.add('hidden'); startChallenge(currentCategory); };
+            dom.restartBtn.onclick = () => filterAndStartPractice(practiceState.currentYear || 'all');
+            dom.chooseYearBtn.onclick = () => showYearSelection();
+
+            dom.nextQuestionBtn.onclick = () => {
+                if (currentMode === 'practice') handleNextPracticeQuestion();
+                else {
+                    if (dom.nextQuestionBtn.textContent === '挑戰結束') showGameOverScreen();
+                    else { comboState.currentIndex++; displayChallengeQuestion(); }
+                }
+            };
+
+            ['submitFillInBtn', 'submitReorderFillBtn', 'submitTranslationBtn'].forEach(id => {
+                if (dom[id]) dom[id].onclick = () => {
+                    if(hasAnsweredCurrent) return;
+                    currentMode === 'practice' ? checkPracticeAnswer({}) : checkChallengeAnswer({});
+                };
+            });
+            
+            dom.closeLeaderboardBtn.onclick = () => dom.leaderboardModal.classList.add('hidden');
+            dom.viewArticleBtn.onclick = showFullArticle;
+            dom.closeModalBtn.onclick = () => dom.articleModal.classList.add('opacity-0');
+            dom.articleModal.addEventListener('transitionend', e => { if (e.propertyName === 'opacity' && dom.articleModal.classList.contains('opacity-0')) dom.articleModal.classList.add('hidden'); });
+            dom.articleModal.onclick = e => { if (e.target === dom.articleModal) dom.articleModal.classList.add('opacity-0'); };
+
+            const hFE=(e)=>{if(e.key==='Enter'&&!dom.submitFillInBtn.disabled){e.preventDefault(); dom.submitFillInBtn.click();}}; 
+            dom.fillInInput1.addEventListener('keydown',hFE); 
+            dom.fillInInput2.addEventListener('keydown',hFE);
+            const hEK=(e,btn)=>{if(e.key==='Enter'&&!e.shiftKey&&!btn.disabled){e.preventDefault(); btn.click();}};
+            dom.reorderFillInput.addEventListener('keydown',(e)=>hEK(e,dom.submitReorderFillBtn)); 
+            dom.translationInput.addEventListener('keydown',(e)=>hEK(e,dom.submitTranslationBtn));
+        }
+
+        // --- Parsers ---
+        function setHtml(el,h){if(!el)return; el.innerHTML="";const t=document.createElement("template");t.innerHTML=h?h.trim():"";el.append(t.content)}
+        function shuffleArray(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
+        function parseRawCSV(t){const r=[];let cR=[],cF="",iQ=!1;const d=t.trim()+"\n";for(let i=0;i<d.length;i++){const c=d[i];if(iQ)if('"'===c)if(i+1<d.length&&'"'===d[i+1])cF+='"',i++;else iQ=!1;else cF+=c;else if('"'===c)iQ=!0;else if(","===c)cR.push(cF),cF="";else if("\n"===c||"\r"===c){"\r"===c&&i+1<d.length&&"\n"===d[i+1]&&i++,cR.push(cF),(cR.length>1||1===cR.length&&""!==cR[0])&&r.push(cR),cR=[],cF=""}else cF+=c}return r}
+        function parseSingleQuestions(t){return parseRawCSV(t).slice(1).map(v=>v&&v.length>=7?{id:v[0]||"N/A",question:v[1]||"",options:{A:v[2],B:v[3],C:v[4],D:v[5]},answer:v[6]||"",explanation:v[7]||"無",fullArticle:v[8]||null}:null).filter(Boolean)}
+        function parseFillInQuestions(t){return parseRawCSV(t).slice(1).map(v=>v&&v.length>=4?{id:v[0]||"N/A",question:v[1]||"",translation:v[2]||"",answer1:v[3]||"",answer2:v[4]||null,explanation:v[5]||"無"}:null).filter(Boolean)}
+        function parseReorderFillQuestions(t){return parseRawCSV(t).slice(1).map(v=>v&&v.length>=3?{id:v[0]||"N/A",question:v[1]||"",answer:v[2]||"",explanation:v[3]||"無"}:null).filter(Boolean)}
+        function parseTranslationGroupQuestions(t){const q=parseRawCSV(t).slice(1).map(v=>v&&v.length>=5?{id:v[0]||"N/A",mainSentence:v[1]||"",explanation:v[2]||"無",prompt:v[3]||"",answer:v[4]||""}:null).filter(Boolean);return groupQuestionsById(q)}
+        function parseMcqGroupQuestions(t){return groupQuestionsById(parseSingleQuestions(t))}
+        function groupQuestionsById(q){const g={};q.forEach(i=>{const p=i.id.split("-");if(p.length<2)return;const k=`${p[0]}-${p[1]}`;g[k]||(g[k]=[]),g[k].push(i)});const a=Object.values(g);return a.forEach(grp=>grp.sort((x,y)=>parseInt(x.id.split("-")[2])-parseInt(y.id.split("-")[2]))),a}
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
